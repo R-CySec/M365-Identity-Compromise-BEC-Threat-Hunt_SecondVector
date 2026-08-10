@@ -5,7 +5,7 @@
 **Date:** 2026-08-10\
 **Environment:** Microsoft Defender XDR, Microsoft Sentinel, Microsoft 365 / Entra ID\
 **Source:** Log(N) Pacific Cyber Range - Hunt 08\
-**Incident:** Microsoft XDR Incident 87241\
+**Incident:** Microsoft XDR Incident 87241
 
 ## 🛡️Overview
 
