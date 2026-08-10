@@ -314,7 +314,7 @@ The recommended response prioritized terminating adversary access before investi
 5. **Review Affected Files:** Review the three identified files to determine what information was exposed and whether additional sensitive data was accessed.
 6. **Review Conditional Access Coverage:** Investigate why Conditional Access was not applied to the relevant authentication and identify whether additional policies or authentication controls are required.
 7. **Review External Mail Forwarding**: Investigate the external forwarding destination and determine what mailbox content was successfully forwarded outside the organization.
-8. **Review the Targeted User**: Investigate j.reynolds@lognpacific.org for related malicious messages, mailbox rules, file access, and potential account compromise.
+8. **Review the Targeted User**: Investigate `j.reynolds@lognpacific.org` for related malicious messages, mailbox rules, file access, and potential account compromise.
 
 # Investigation Challenges and Lessions Learned
 
