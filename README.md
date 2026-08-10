@@ -41,21 +41,26 @@ The investigation focused on four primary intelligence gaps:
 
 # 🧭 Investigation
 
+# 🧭 Investigation
+
 ## 1. Initial Authentication & Identity Risk
 
-**Objective:** The investigation began by reviewing the Defender XDR incident and identifying the affected user's User Principal Name (UPN).
+**Objective:** Identify the affected Microsoft 365 account and establish the context of the suspicious sign-in.
 
-**Approach:** `SigninLogs` was used to examine identity risk activity and establish context around the suspicious authentication.
+**Approach:** `SigninLogs` was reviewed following the Defender XDR alert.
 
 ```kql
 SigninLogs
 | sort by TimeGenerated desc
 ```
 
-**Finding:** The investigation identified suspicious authentication activity associated with the affected Microsoft 365 identity `m.smith@lognpacific.org`.
+**Finding:** The investigation identified suspicious sign-in activity involving `m.smith@lognpacific.org` from anonymous IP address `103.69.224.136`. The Defender XDR alert classification initiated the investigation. The IP was geolocated to the Netherlands and was inconsistent with the user's expected location, providing additional evidence of unauthorized access.
 
-## 2. Suspicious Successful Authentication
-**Approach:** `SigninLogs` was used to investigate authentication activity associated with the suspicious source IP (`103.69.224.136`) and affected user (`m.smith@lognpacific.org`).
+---
+
+## 2. Suspicious Successful Sign-In
+
+**Approach:** `SigninLogs` was filtered for the suspicious IP address and affected account.
 
 ```kql
 SigninLogs
@@ -64,14 +69,15 @@ SigninLogs
 | where ResultSignature contains "success"
 ```
 
-The investigation initially relied heavily on `TimeGenerated` when reconstructing authentication activity. Further investigation demonstrated that `CreatedDateTime` was more appropriate for establishing the sequence of authentication attempts in this case.
+During timeline reconstruction, `CreatedDateTime` was found to provide a more appropriate reference for the chronological sequence of sign-in events than `TimeGenerated`.
 
-**Finding:**  The investigation identified an unauthorized successful authentication associated with the suspicious source IP. ==Note: The evidence did not indicate that the adversary hijacked an existing session, so the finding is characterized as an unauthorized successful authentication rather than session hijacking.==
+**Finding:** A successful sign-in from `103.69.224.136` was identified. The evidence supported an unauthorized successful sign-in rather than session hijacking.
 
-## 3. Failed Authentication Attempts
-**Approach:** Authentication failures were identified using Entra authentication result code `50126`. The investigation initially produced inconsistent results because the Sentinel time range excluded earlier authentication events. ==Expanding the time range to 24 hours prior to the initial Microsoft Entra ID Alert revealed two authentication failures preceding the suspicious successful authentication.==
+---
 
+## 3. Failed Sign-In Attempts
 
+**Approach:** Entra authentication result code `50126` was used to identify failed sign-in attempts.
 
 ```kql
 SigninLogs
@@ -81,11 +87,15 @@ SigninLogs
 | where ResultType contains "50126"
 ```
 
-**Finding:** Two failed authentication attempts occurred before the successful authentication from the suspicious IP `103.69.224.136`. This established evidence of attempted unauthorized access preceding the successful authentication.
+The investigation window was expanded after the initial search excluded earlier events.
+
+**Finding:** Two failed sign-in attempts preceded the successful sign-in from `103.69.224.136`, establishing attempted unauthorized access before successful account entry.
+
+---
 
 ## 4. Post-Authentication Application Activity
 
-**Approach:** The investigation examined successful authentication activity associated with the suspicious IP and user and summarized the applications accessed.
+**Approach:** Successful sign-ins from the suspicious IP were reviewed to identify accessed Microsoft 365 applications and associated session activity.
 
 ```kql
 SigninLogs
@@ -95,8 +105,6 @@ SigninLogs
 | summarize DistinctApps = dcount(AppDisplayName)
 ```
 
-`SessionId` was also examined to identify related authentication activity:
-
 ```kql
 SigninLogs
 | where IPAddress contains "224.136"
@@ -105,12 +113,13 @@ SigninLogs
 | summarize Frequency = count() by SessionId
 ```
 
-**Finding:** The successful authentication was followed by activity across multiple Microsoft 365 applications, providing additional evidence that the authentication was associated with ==meaningful account activity rather than an isolated authentication event.==
+**Finding:** The successful sign-in was followed by activity across multiple Microsoft 365 applications. The subsequent activity was associated with meaningful account activity rather than an isolated authentication event.
+
+---
 
 ## 5. Microsoft Graph Activity
-**Approach:** `MicrosoftGraphActivityLogs` was used to investigate programmatic Microsoft 365 activity originating from the suspicious IP.
 
-The investigation identified Microsoft Graph activity involving report endpoints and `$batch` requests. Additional investigation focused on Graph requests involving the affected user's resources, including `/me/` requests referencing groups or membership information.
+**Approach:** `MicrosoftGraphActivityLogs` was reviewed for API activity associated with the suspicious IP and compromised account.
 
 ```kql
 MicrosoftGraphActivityLogs
@@ -120,10 +129,15 @@ MicrosoftGraphActivityLogs
 | order by TimeGenerated asc
 ```
 
-**Finding:**  Microsoft Graph telemetry provided evidence of ==programmatic interaction with Microsoft 365 resources== following the suspicious authentication. This demonstrated the value of correlating authentication telemetry with API activity when investigating cloud identity compromise.
+Additional requests involving `/me/` and `/me/memberOf` were reviewed to identify account and directory reconnaissance.
+
+**Finding:** The threat actor used Microsoft Graph to perform programmatic reconnaissance of the compromised Microsoft 365 identity, including MFA registration and directory membership information.
+
+---
 
 ## 6. Internal Targeting and Business Email Compromise
-**Approach:** `EmailEvents` was used to identify email activity associated with the malicious sender IP and the relevant investigation timeframe. The investigation identified an existing email conversation concerning banking information involving another organizational user.
+
+**Approach:** `EmailEvents` was reviewed for activity associated with the suspicious IP and payment-related subjects.
 
 ```kql
 EmailEvents
@@ -132,7 +146,9 @@ EmailEvents
 | project TimeGenerated, SenderIPv4, RecipientEmailAddress, Subject
 ```
 
-A broadened timeframe and Subject keyword search showed an email Subject: `Q1 Vendor Payment Schedule - Review Required` that predates the intrusion by five months.  This email is an internal payment-approval conversation TAs tend to seek and reference during the recon phase when pricing the fraudulent payment. 
+A broader search identified the existing conversation:
+
+`Q1 Vendor Payment Schedule - Review Required`
 
 ```kql
 EmailEvents
@@ -141,30 +157,77 @@ EmailEvents
 | project TimeGenerated, Subject, SenderIPv4, RecipientEmailAddress
 ```
 
+**Finding:** The threat actor leveraged an existing payment-related conversation in `m.smith@lognpacific.org`'s mailbox to send a fraudulent payment-information request to `j.reynolds@lognpacific.org`. This behavior is consistent with **MITRE ATT&CK T1534 - Internal Spearphishing**.
 
-**Finding:** After gaining access to the `m.smith@lognpacific.org` account, the adversary leveraged an existing email conversation concerning banking information to target  `j.reynolds@lognpacific.org` with an illegitimate payment information email. This behavior is consistent with **MITRE ATT&CK T1534 - Internal Spearphishing**, where a compromised internal account is used to target another user within the organization.
-The activity demonstrated that the compromise was not limited to the initially affected account.
+`CloudAppEvents` also showed a Microsoft Teams message reinforcing the same fraudulent payment-information pretext, demonstrating multi-channel social engineering.
 
-==Shortly after a second channel reinforcement by the Threat Actor occurred when they pushed a second illegitimate request to update the  payment information via a Teams message. This adds to the pretext of the situation, further increasing the perspective of legitimacy to the second target,== `j.reynolds@lognpacific.org`.  
+---
 
 ## 7. Malicious Email Forwarding and Hiding Rules
-**Approach:** `CloudAppEvents` was used to investigate additional Microsoft 365 application activity. The investigation identified malicious forwarding and email-hiding activity facilitated by Power Automate. 
 
-**Finding:** The adversary established two rules to forward email to an external Proton Mail account (`merovingian1337@proton.me`) and another rule to archive messages containing terms associated with the adversary's targeted banking information. This behavior is consistent with **MITRE ATT&CK T1564.008 - Email Hiding Rules**.
+**Approach:** `OfficeActivity` was reviewed for mailbox-rule creation.
 
-The forwarding and archiving behavior provided both persistence of access to relevant communications and a mechanism for reducing the likelihood that the activity would be noticed by the legitimate user.
+```kql
+OfficeActivity
+| where TimeGenerated between (datetime(2026-06-11 00:00)..datetime(2026-06-12 00:00))
+| where Operation contains "New-InboxRule"
+```
+
+**Finding:** The threat actor established two mailbox-rule behaviors:
+
+* A concealment rule designed to hide or archive relevant responses.
+* An external forwarding rule directing selected email to `merovingian1337@proton.me`.
+
+The concealment behavior aligns with **MITRE ATT&CK T1564.008 - Email Hiding Rules**. The external forwarding behavior aligns with **T1114.003 - Email Forwarding Rule**.
+
+The investigation did not test whether the forwarding rule remained effective after containment, so continued access is described as a potential mechanism rather than confirmed persistence.
+
+---
 
 ## 8. Targeted Data Collection
-**Approach:** The investigation identified multiple `FileDownloaded` events and examined the associated `SourceFileName` values.
-Three files were specifically targeted:
-- `VPN Access Creds.txt`
-- `Vender Banking Details.txt`
-- `Book.xlsx`
-The activity indicated deliberate targeting of credentials and business/financial information rather than indiscriminate file access.
 
-**Finding:** The adversary successfully collected and exfiltrated three files likely containing sensitive organizational information, including VPN credentials and banking-related information. Recommend the organization review these files to validate the information accessed and take follow-on action as needed.
+**Approach:** `CloudAppEvents` was filtered for `FileDownloaded` activity associated with the compromised account.
 
-The targeted nature of the collection provided additional evidence that the activity represented a significant compromise rather than an isolated unauthorized authentication.
+```kql
+CloudAppEvents
+| where ActionType == "FileDownloaded"
+| where Timestamp between (datetime(2026-06-11 00:00)..datetime(2026-06-12 00:00))
+| where AccountDisplayName =~ "m.smith@lognpacific.org"
+| extend FileName = tostring(RawEventData.SourceFileName)
+| extend SiteUrl = tostring(RawEventData.SiteUrl)
+| order by Timestamp asc
+```
+
+**Finding:** The threat actor downloaded three targeted files:
+
+* `VPN Access Creds.txt`
+* `Vender Banking Details.txt`
+* `Book.xlsx`
+
+The files were downloaded in the same second, indicating a deliberate collection of credential, banking, and business information rather than indiscriminate file access.
+
+A separate `FileAccessed/View` event was identified for `yomark.pdf`, but the file was not downloaded. The activity was assessed as consistent with a potential credential-store pointer in the context of **MITRE ATT&CK T1555 - Credentials from Password Stores**.
+
+The investigation confirmed targeted collection but did not establish that the three downloaded files themselves were exfiltrated. Separately, the mailbox forwarding rule demonstrated that email content was capable of being sent to the external Proton Mail account.
+
+---
+
+## 9. Power Automate Abuse and Automated Access
+
+**Approach:** Microsoft Graph, Microsoft 365 application, and Power Automate activity were correlated to identify automation established during the compromise.
+
+The investigation identified activity involving the Microsoft Flow Portal followed by an OAuth grant associated with application ID:
+
+`7ab7862c-4c57-491e-8a45-d52a7e023983`
+
+Subsequent Graph activity from Microsoft-owned Azure infrastructure used the same application identity and accessed the compromised mailbox through the `/me/messages/.../forward` endpoint.
+
+**Finding:** The threat actor established a Power Automate flow with delegated OAuth access to the compromised mailbox.
+
+The flow subsequently operated through Microsoft-owned Azure infrastructure rather than the threat actor's original source IP and forwarded mailbox content to `merovingian1337@proton.me`.
+
+This demonstrated a separation between the threat actor's interactive activity and subsequent automated cloud activity, creating a mechanism for continued mailbox access without requiring the threat actor to maintain the original interactive session.
+
 
 ## 🚩 All Flags Quick Reference
 
