@@ -267,8 +267,7 @@ This demonstrated a separation between the threat actor's interactive activity a
 | Q33      | Correlation and Containment | One Actor, Every Source            | `7`                                                                                  |
 | Q34      | Correlation and Containment | Containment Ordering               | `Revoke session`                                                                     |
 | Q35      | Correlation and Containment | Where the FLow is REmoved          | `Power Platform Admin Center`                                                        |
-| Q36      | Correlation and Containment | The Control that Never Fired       | `not applied, not evaluated by ca`
-
+| Q36      | Correlation and Containment | The Control that Never Fired       | `not applied, not evaluated by ca`                                              |
 | Q37      | Correlation and Containment | Why Revoke Before Reset            | `refresh session token survives a reset. a full session revocation kills it.`        |
 
 ---
