@@ -7,7 +7,7 @@
 **Source:** Log(N) Pacific Cyber Range - Hunt 08\
 **Incident:** Microsoft XDR Incident 87241\
 
-## Overview
+## 🛡️Overview
 
 **Objective:** Investigate a simulated Microsoft Entra incident and determine whether an initially low-risk anonymous IP address sign-in represented a broader compromise and Business Email Compromise (BEC) campaign.
 
@@ -20,8 +20,6 @@
 - `EmailEvents`
 - `CloudAppEvents`
 - `AuditLogs`
-- `IdentityLogonEvents`
-- `BehaviorAnalytics`
 
 **Tools:** KQL, Microsoft Sentinel, Microsoft Defender XDR, Microsoft 365 / Entra ID
 
@@ -30,7 +28,7 @@ This investigation was conducted as part of the Log(N) Pacific Cyber Range. The 
 
 ---
 
-# Investigation Scope
+# 🔍Investigation Scope
 
 The investigation focused on four primary intelligence gaps:
 
@@ -41,20 +39,21 @@ The investigation focused on four primary intelligence gaps:
 
 ---
 
-# Investigation
+# 🧭 Investigation
 
 ## 1. Initial Authentication & Identity Risk
 
 **Objective:** The investigation began by reviewing the Defender XDR incident and identifying the affected user's User Principal Name (UPN).
 
-==**Approach:** `AADUserRiskEvents` was used to examine identity risk activity and establish context around the suspicious authentication.==
+**Approach:** `SigninLogs` was used to examine identity risk activity and establish context around the suspicious authentication.
 
 ```kql
-AADUserRiskEvents
+SigninLogs
 | sort by TimeGenerated desc
 ```
 
 **Finding:** The investigation identified suspicious authentication activity associated with the affected Microsoft 365 identity `m.smith@lognpacific.org`.
+
 ## 2. Suspicious Successful Authentication
 **Approach:** `SigninLogs` was used to investigate authentication activity associated with the suspicious source IP (`103.69.224.136`) and affected user (`m.smith@lognpacific.org`).
 
@@ -155,7 +154,7 @@ The activity demonstrated that the compromise was not limited to the initially a
 
 The forwarding and archiving behavior provided both persistence of access to relevant communications and a mechanism for reducing the likelihood that the activity would be noticed by the legitimate user.
 
-## Targeted Data Collection
+## 8. Targeted Data Collection
 **Approach:** The investigation identified multiple `FileDownloaded` events and examined the associated `SourceFileName` values.
 Three files were specifically targeted:
 - `VPN Access Creds.txt`
@@ -167,7 +166,7 @@ The activity indicated deliberate targeting of credentials and business/financia
 
 The targeted nature of the collection provided additional evidence that the activity represented a significant compromise rather than an isolated unauthorized authentication.
 
-## All Flags Quick Reference
+## 🚩 All Flags Quick Reference
 
 | Question | Section                     | Flag Name                          | Answer / Finding                                                                     |
 | -------- | --------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------ |
@@ -207,32 +206,13 @@ The targeted nature of the collection provided additional evidence that the acti
 | Q33      | Correlation and Containment | One Actor, Every Source            | `7`                                                                                  |
 | Q34      | Correlation and Containment | Containment Ordering               | `Revoke session`                                                                     |
 | Q35      | Correlation and Containment | Where the FLow is REmoved          | `Power Platform Admin Center`                                                        |
-| Q36      | Correlation and Containment | The Control that Never Fired       | `not applied, not evaluated by ca`\|\|`                                              |
+| Q36      | Correlation and Containment | The Control that Never Fired       | `not applied, not evaluated by ca`
+
 | Q37      | Correlation and Containment | Why Revoke Before Reset            | `refresh session token survives a reset. a full session revocation kills it.`        |
 
 ---
-### Attack Chain
 
-```text
-Unauthorized Authentication
-        ↓
-Compromised M365 Identity
-        ↓
-Internal Email Discovery
-        ↓
-Targeting of Second Employee
-        ↓
-Malicious Forwarding / Email Hiding Rules
-        ↓
-Targeted File Collection
-        ↓
-Potential Exposure of Credentials & Banking Information
-```
-
-
----
-
-# Key Findings
+# 🚨Key Findings
 
 1. An adversary successfully authenticated to a targeted Microsoft 365 account from a suspicious external IP following failed authentication attempts.
 2. Conditional Access was not applied to the relevant authentication, meaning the expected access control was not evaluated or enforced.
@@ -245,7 +225,7 @@ Potential Exposure of Credentials & Banking Information
 6. Microsoft Graph telemetry provided evidence of programmatic Microsoft 365 activity following the unauthorized authentication.
 7. The investigation established that the incident was significantly more serious than the initial Low severity assessment indicated.
 
-## Attack Chain
+## 🔗 Attack Chain
 ```text
 Unauthorized Authentication
         ↓
@@ -262,7 +242,7 @@ Targeted File Collection
 Potential Exposure of Credentials & Banking Information
 ```
 
-## Containment and Remediation
+## ⚠️Containment and Remediation
 The recommended response prioritized terminating adversary access before investigating the remaining affected resources.
 
 1. **Revoke User Access:** Revoke active sessions and authentication tokens for affected accounts to prevent the adversary from maintaining access through existing authentication artifacts.
@@ -311,7 +291,7 @@ The resulting information was independently evaluated against the available Sent
 
 **Lesson:** AI can accelerate research and help bridge knowledge gaps, but analyst judgment and validation against the underlying evidence remains essential. 
 
-# What I Learned
+# 💭 What I Learned
 This investigation strengthened my ability to:
 
 - Investigate Microsoft 365 identity compromise using Sentinel and Defender XDR.
