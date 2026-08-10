@@ -2,7 +2,7 @@
 
 
 **Title:** Second Vector Threat Hunt: M365 Identity Compromise & Business Email Compromise\
-**Date:** 2026-08-09\
+**Date:** 2026-08-10\
 **Environment:** Microsoft Defender XDR, Microsoft Sentinel, Microsoft 365 / Entra ID\
 **Source:** Log(N) Pacific Cyber Range - Hunt 08\
 **Incident:** Microsoft XDR Incident 87241\
@@ -38,8 +38,6 @@ The investigation focused on four primary intelligence gaps:
 4. Identify whether additional users were targeted or drawn into the activity.
 
 ---
-
-# 🧭 Investigation
 
 # 🧭 Investigation
 
@@ -290,19 +288,21 @@ This demonstrated a separation between the threat actor's interactive activity a
 
 ## 🔗 Attack Chain
 ```text
-Unauthorized Authentication
+Unauthorized Authentication (Sign-In)
         ↓
-Compromised M365 Identity
+Compromised M365 Account
         ↓
 Internal Email Discovery
         ↓
-Targeting of Second Employee
+Internal Spearphishing / BEC
         ↓
-Malicious Forwarding / Email Hiding Rules
+Microsoft Teams Reinforcement 
+        ↓
+Malicious Forwarding / Email Hiding Rules via Power Automate Flow
         ↓
 Targeted File Collection
         ↓
-Potential Exposure of Credentials & Banking Information
+Potential Exposure of Sensitive Information
 ```
 
 ## ⚠️Containment and Remediation
@@ -311,8 +311,11 @@ The recommended response prioritized terminating adversary access before investi
 1. **Revoke User Access:** Revoke active sessions and authentication tokens for affected accounts to prevent the adversary from maintaining access through existing authentication artifacts.
 2. **Reset Credentials:** Reset passwords for the two affected user accounts.
 3. **Remove Malicious Email Rules:** Delete the malicious forwarding and email-archiving rules established by the adversary.
-4. **Review Affected Files:** Review the three identified files to determine what information was exposed and whether additional sensitive data was accessed.
-5. **Review Conditional Access Coverage:** Investigate why Conditional Access was not applied to the relevant authentication and identify whether additional policies or authentication controls are required.
+4. **Disable or Remove the Malicious Power Automate Flow**: Investigate and remove the compromised Power Automate flow and revoke the associated OAuth permissions/application access.
+5. **Review Affected Files:** Review the three identified files to determine what information was exposed and whether additional sensitive data was accessed.
+6. **Review Conditional Access Coverage:** Investigate why Conditional Access was not applied to the relevant authentication and identify whether additional policies or authentication controls are required.
+7. **Review External Mail Forwarding**: Investigate the external forwarding destination and determine what mailbox content was successfully forwarded outside the organization.
+8. **Review the Targeted User**: Investigate j.reynolds@lognpacific.org for related malicious messages, mailbox rules, file access, and potential account compromise.
 
 # Investigation Challenges and Lessions Learned
 
@@ -365,7 +368,9 @@ This investigation strengthened my ability to:
 - Identify BEC behaviors including internal targeting and malicious email rules.
 - Investigate targeted data collection within Microsoft 365.
 - Evaluate Conditional Access as part of an identity compromise investigation.
+- Investigate Power Automate and OAuth activity associated with a compromised account.
 - Translate individual telemetry findings into a broader attack narrative.
+- Distinguish evidence of data collection from evidence of confirmed exfiltration.
 
 ---
 #### Disclaimer
